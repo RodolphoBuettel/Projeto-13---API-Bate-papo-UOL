@@ -2,6 +2,12 @@ import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
+import joi from "joi";
+import dayjs from "dayjs";
+
+const participantSchema = joi.object({
+    name: joi.string().min(1).required()
+})
 
 const app = express();
 dotenv.config();
@@ -21,9 +27,30 @@ try {
 app.post("/participants", async (req, res) => {
     const { name } = req.body;
 
+    const participant = {
+        name
+    }
+
+    const validation = participantSchema.validate(participant, { abortEarly: false });
+
+    if (validation.error) {
+        const erros = validation.error.details.map((detail) => detail.message);
+        res.status(422).send(erros);
+        return;
+    }
+
+    let time = dayjs().locale("pt-br").format("HH:mm:ss");
+
     const uSer = {
         name,
-        lastStatus: Date.now()
+        lastStatus: Date.now(),
+        message:{
+            from: name,
+            to: "Todos",
+            text: "entra na sala...",
+            type: "status",
+            time
+        }
     }
 
     const users = await db.collection("participants").find().toArray();
@@ -34,17 +61,12 @@ app.post("/participants", async (req, res) => {
         return;
     }
 
-    if (!name) {
-        res.status(401).send({error: "Insira um nome"});
-        return;
-    }
-
     try {
         await db.collection("participants").insert(uSer);
-        res.status(201);
+        res.sendStatus(201);
     } catch (err) {
         console.log(err);
-        res.status(422);
+        res.sendStatus(422);
     }
 
 });
