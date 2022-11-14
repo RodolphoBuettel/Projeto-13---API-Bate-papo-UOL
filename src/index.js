@@ -49,13 +49,14 @@ app.post("/participants", async (req, res) => {
     const uSer = {
         name,
         lastStatus: Date.now(),
-        message: {
-            from: name,
-            to: "Todos",
-            text: "entra na sala...",
-            type: "status",
-            time
-        }
+    };
+
+    const login =  {
+        from: name,
+        to: "Todos",
+        text: "entra na sala...",
+        type: "status",
+        time
     }
 
     const users = await db.collection("participants").find().toArray();
@@ -68,6 +69,7 @@ app.post("/participants", async (req, res) => {
 
     try {
         await db.collection("participants").insertOne(uSer);
+        await db.collection("messages").insertOne(login);
         res.sendStatus(201);
     } catch (err) {
         console.log(err);
