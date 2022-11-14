@@ -51,7 +51,7 @@ app.post("/participants", async (req, res) => {
         lastStatus: Date.now()
     };
 
-    const login =  {
+    const login = {
         from: name,
         to: "Todos",
         text: "entra na sala...",
@@ -162,7 +162,7 @@ app.post("/status", async (req, res) => {
     }
 
     try {
-        const updateStatus = await db.collection("participants").find().toArray()
+        await db.collection("participants");
         db.collection("participants").updateOne({ name: user },
             { $set: { lastStatus: Date.now() } });
         res.sendStatus(200);
