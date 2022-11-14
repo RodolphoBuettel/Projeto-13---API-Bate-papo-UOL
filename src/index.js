@@ -48,7 +48,7 @@ app.post("/participants", async (req, res) => {
 
     const uSer = {
         name,
-        lastStatus: Date.now(),
+        lastStatus: Date.now()
     };
 
     const login =  {
@@ -195,4 +195,4 @@ async function removeInactive() {
 
 setInterval(removeInactive, 15000);
 
-app.listen(5000, () => console.log("Server runing in port: 5000"));
+app.listen(process.env.PORT, () => console.log(`Server runing in port: ${process.env.PORT}`));
