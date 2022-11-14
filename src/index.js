@@ -141,7 +141,7 @@ app.get("/messages", async (req, res) => {
         let lastMessages = mes.filter(m => m.to === user ||
             m.from === user || m.to === 'Todos');
 
-        if (limit) {
+        if (!limit) {
             lastMessages = lastMessages.slice(0, limit);
         }
         res.send(lastMessages);
