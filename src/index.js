@@ -12,7 +12,7 @@ const participantSchema = joi.object({
 const messageSchema = joi.object({
     to: joi.string().min(1).required(),
     text: joi.string().min(1).required(),
-    type: joi.string().required()
+    type: joi.string().valid("message", "private_message").required()
 })
 
 const app = express();
@@ -49,7 +49,7 @@ app.post("/participants", async (req, res) => {
     const uSer = {
         name,
         lastStatus: Date.now(),
-        message:{
+        message: {
             from: name,
             to: "Todos",
             text: "entra na sala...",
@@ -67,7 +67,7 @@ app.post("/participants", async (req, res) => {
     }
 
     try {
-        await db.collection("participants").insert(uSer);
+        await db.collection("participants").insertOne(uSer);
         res.sendStatus(201);
     } catch (err) {
         console.log(err);
@@ -86,8 +86,8 @@ app.get("/participants", async (req, res) => {
 });
 
 app.post("/messages", async (req, res) => {
-    const {to, text, type} = req.body;
-    const {user} = req.headers;
+    const { to, text, type } = req.body;
+    const { user } = req.headers;
 
     const message = {
         to,
@@ -103,32 +103,24 @@ app.post("/messages", async (req, res) => {
         return;
     }
 
-    // const typeString = type.toString();
-    // console.log(typeString);
-    
-    // if(typeString === "message" || typeString === "private_message"){
-    //     res.status(409).send({ error: "Tipo de mensagem não permitida" });
-    //     return;
-    // }
-
     const sender = await db.collection("participants").find().toArray();
     const isUserExists = sender.find((u) => u.name === user);
-    
-    if(!isUserExists){
+
+    if (!isUserExists) {
         res.status(409).send({ error: "Usuário não existe" });
         return;
     }
 
     const messageVerificated = {
         to,
-        from: user, 
+        from: user,
         text,
-        type, 
+        type,
         time
     }
 
     try {
-        await db.collection("messages").insert(messageVerificated);
+        await db.collection("messages").insertOne(messageVerificated);
         res.sendStatus(201);
     } catch (err) {
         console.log(err);
@@ -138,32 +130,39 @@ app.post("/messages", async (req, res) => {
 });
 
 app.get("/messages", async (req, res) => {
+
+    const limit = req.query.limit;
+    const user = req.headers.user;
+
     try {
         const mes = await db.collection("messages").find().toArray();
-        res.send(mes);
+        let lastMessages = mes.filter(m => m.to === user ||
+            m.from === user || m.to === 'Todos');
+
+        if (limit) {
+            lastMessages = lastMessages.slice(0, limit);
+        }
+        res.send(lastMessages);
     } catch (err) {
         console.log(err);
     }
 });
 
 app.post("/status", async (req, res) => {
-    const {user} = req.headers;
+    const { user } = req.headers;
 
     const checkStatus = await db.collection("participants").find().toArray();
     const isUserExists = checkStatus.find((u) => u.name === user);
 
-    if(!isUserExists){
+    if (!isUserExists) {
         res.sendStatus(404);
         return;
     }
 
-    const userStatus = {
-        name: user,
-        lastStatus: Date.now()
-    }
-
     try {
-        await db.collection("status").insert(userStatus);
+        const updateStatus = await db.collection("participants").find().toArray()
+        db.collection("participants").updateOne({ name: user },
+            { $set: { lastStatus: Date.now() } });
         res.sendStatus(200);
     } catch (err) {
         console.log(err);
@@ -171,5 +170,27 @@ app.post("/status", async (req, res) => {
     }
 
 });
+
+async function removeInactive() {
+    const participants = await db.collection("participants").find().toArray()
+
+    participants.forEach(async (user) => {
+        let day = new Date();
+        let period = day.toLocaleTimeString();
+
+        if (((Date.now() / 1000)) - (user.lastStatus / 1000) > 10) {
+            await db.collection("participants").deleteOne({ name: user.name })
+            await db.collection("messages").insertOne({
+                from: user.name,
+                to: 'Todos',
+                text: 'sai da sala...',
+                type: 'status',
+                time: period
+            });
+        };
+    });
+};
+
+setInterval(removeInactive, 15000);
 
 app.listen(5000, () => console.log("Server runing in port: 5000"));
